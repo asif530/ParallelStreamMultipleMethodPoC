@@ -1,0 +1,141 @@
+Connection Java - MySQL : Public Key Retrieval is not allowed
+Mqsql Problem
+https://stackoverflow.com/questions/50379839/connection-java-mysql-public-key-retrieval-is-not-allowed
+Short Soln: jdbc:mysql://localhost:3306/db?allowPublicKeyRetrieval=true&useSSL=false
+
+
+
+How to use Long in Requestbody springboot 3
+Ans: https://stackoverflow.com/questions/44211363/single-field-body-in-spring-rest-request
+
+    @RequestMapping(value = "/users", method = RequestMethod.POST)
+     public ResponseEntity<Void> createUser(@RequestBody Long userId) {
+         // do smth with userId
+     }
+
+     Payload: Select Raw and json from dropdown in postman. In body just type the number
+
+
+     https://supakon-k.medium.com/understanding-the-difference-between-thread-stack-and-call-stack-02957938e29f
+     https://www.digitalocean.com/community/tutorials/java-multithreading-concurrency-interview-questions-answers
+     https://www.quora.com/Why-don-t-we-create-child-processes-of-a-process-instead-of-multi-threading-creating-threads-of-a-process
+
+Following is my current code structure:
+1. ClassTrasnsfer.transfer() -> CallImage.methodCallImage(List<Long> propertyIds)
+2. methodCallImage(List<Long> propertyIds)-> CallImageHelper.processImage(Long propertyId)
+3. CallImageHelper.processImage(Long propertyId)
+                               ->a) ImageProcess.saveImageLocal(propertyId)
+                                   b) ImageProcess.saveImageInDB(propertyId)
+                                   c) ImageProcess.saveImageInS3()
+                                   d) ImageProcess.updateImageLocation()
+In step 2,  "CallImageHelper.processImage(Long propertyId)" is being called with parallel stream. Now describe me what you learnt from this rough code. No need to write ant code.
+====> From the provided code structure, I understand the following:
+
+      1. **ClassTransfer.transfer():**
+         - This is the main entry point which initiates the process by calling `CallImage.methodCallImage(List<Long> propertyIds)` with a list of property IDs.
+
+      2. **CallImage.methodCallImage(List<Long> propertyIds):**
+         - This method takes a list of property IDs and processes each property ID in parallel by calling `CallImageHelper.processImage(Long propertyId)`.
+
+      3. **CallImageHelper.processImage(Long propertyId):**
+         - This method handles the image processing for a single property ID. The processing includes several steps:
+           - **ImageProcess.saveImageLocal(propertyId):** Saves the image locally.
+           - **ImageProcess.saveImageInDB(propertyId):** Saves the image details in the database.
+           - **ImageProcess.saveImageInS3():** Uploads the image to S3 (Amazon Simple Storage Service).
+           - **ImageProcess.updateImageLocation():** Updates the image location information, likely in a database or some other persistent storage.
+
+      ### Key Points:
+
+      - **Parallel Processing:**
+        - In `methodCallImage(List<Long> propertyIds)`, the `CallImageHelper.processImage(Long propertyId)` method is called using a parallel stream. This means the image processing tasks for different property IDs are executed concurrently, leveraging multiple CPU cores for better performance.
+
+      - **Step-by-Step Image Processing:**
+        - For each property ID, a series of operations are performed to handle the image. These steps are sequential for a single property ID but are executed in parallel for multiple property IDs due to the parallel stream.
+
+      - **Modular Design:**
+        - The image processing steps are broken down into distinct methods (`saveImageLocal`, `saveImageInDB`, `saveImageInS3`, and `updateImageLocation`), making the code modular and easier to maintain and extend.
+
+      This approach ensures efficient processing of multiple property images by utilizing parallelism, and the modular design helps in maintaining clear separation of concerns.
+
+
+when calling "CallImageHelper.processImage(Long propertyId)" with parallel stream, system is opening thread. Now each thread is executing methods of "CallImageHelper". So my question is these 4 methods will they be executed in the same thread which was spawned by parallel stream? if 10 threads were spawned, then will there be 10 copies of "CallImageHelper.processImage(Long propertyId)" and its internal mwthod?
+====> Yes, when you call `CallImageHelper.processImage(Long propertyId)` using a parallel stream, the system spawns multiple threads to handle the processing concurrently. Here are the key points regarding the execution of the methods within `CallImageHelper.processImage(Long propertyId)`:
+
+      1. **Thread Execution:**
+         - Each method call within `CallImageHelper.processImage(Long propertyId)` will be executed in the same thread that was spawned by the parallel stream. So, for a single `propertyId`, the methods `saveImageLocal`, `saveImageInDB`, `saveImageInS3`, and `updateImageLocation` will all run in the same thread.
+
+      2. **Parallel Stream Threads:**
+         - If the parallel stream spawns 10 threads, there will be 10 concurrent executions of `CallImageHelper.processImage(Long propertyId)`, each handling a different `propertyId`. Each of these 10 threads will execute the entire sequence of methods (`saveImageLocal`, `saveImageInDB`, `saveImageInS3`, and `updateImageLocation`) for its respective `propertyId`.
+
+      3. **Method Execution Context:**
+         - The methods within `CallImageHelper` are not static methods. Each thread has its own stack and context, meaning that the sequence of method calls for each `propertyId` is independent of other threads.
+         - The methods do not need to be static because they are called on the same instance of `CallImageHelper` within the context of each thread.
+
+      4. **Copies of Methods:**
+         - There are no separate "copies" of the methods themselves. Methods are part of the class's bytecode, loaded into memory once by the JVM. However, each thread will have its own execution context and stack for these method calls.
+         - Essentially, there will be 10 concurrent executions of the same method sequence, each in its own thread context.
+
+      ### Summary:
+
+      - The methods `saveImageLocal`, `saveImageInDB`, `saveImageInS3`, and `updateImageLocation` will be executed in the same thread that was spawned by the parallel stream for each `propertyId`.
+      - If 10 threads are spawned, each thread will execute `CallImageHelper.processImage(Long propertyId)` for a different `propertyId`, and the methods will be executed in the context of their respective threads.
+      - There won't be 10 separate copies of the methods; rather, there will be 10 concurrent executions of the same methods, each handling different data.
+
+
+Now in these methods there are not any shared variable. But every method has its own local variable. So is there any chance of one thread reading and writing variable of other thread?
+==> In your scenario, where each method within `CallImageHelper.processImage(Long propertyId)` uses its own local variables and there are no shared variables among the threads, there is no chance of one thread reading or writing the variables of another thread. Here’s why:
+
+    1. **Local Variables:**
+       - Local variables are stored on the stack, and each thread has its own stack. This means that local variables in methods executed by one thread are completely isolated from local variables in methods executed by another thread.
+
+    2. **Thread Isolation:**
+       - The execution context (including local variables) of each thread is independent. The JVM ensures that threads do not interfere with each other's stack memory.
+
+    3. **No Shared Variables:**
+       - Since you mentioned that there are no shared variables, each thread operates on its own set of data. This eliminates the risk of concurrent modification or accidental reads/writes across threads.
+
+    ### Key Points:
+
+    - **Thread Safety with Local Variables:**
+      - Local variables are inherently thread-safe because they are confined to the executing thread’s stack.
+
+    - **Concurrency Without Shared State:**
+      - When methods do not share state (i.e., do not use shared variables or shared resources), there is no need for synchronization mechanisms to prevent concurrent access issues.
+
+    ### Example:
+
+    Let's consider an example to illustrate this:
+
+    ```java
+    void saveImageLocal(Long propertyId) {
+        String localImagePath = "local/path/" + propertyId; // local variable, unique to each thread
+        // Processing code...
+    }
+
+    void saveImageInDB(Long propertyId) {
+        String dbRecord = "DBRecord for " + propertyId; // local variable, unique to each thread
+        // Processing code...
+    }
+
+    void saveImageInS3(Long propertyId) {
+        String s3Path = "s3/path/" + propertyId; // local variable, unique to each thread
+        // Processing code...
+    }
+
+    void updateImageLocation(Long propertyId) {
+        String newLocation = "new/location/" + propertyId; // local variable, unique to each thread
+        // Processing code...
+    }
+    ```
+
+    In this example, `localImagePath`, `dbRecord`, `s3Path`, and `newLocation` are local variables within their respective methods. Each thread will have its own copy of these variables, and they will not be shared or accessed by other threads.
+
+    ### Conclusion:
+
+    Given that there are no shared variables and each method uses its own local variables, there is no risk of one thread reading or writing the variables of another thread. Each thread's execution context, including local variables, is isolated, ensuring thread safety.
+
+
+
+
+
+
